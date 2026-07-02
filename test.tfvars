@@ -1,0 +1,14 @@
+region                  = "us-east-1"
+vpc_cidr_block          = "10.1.0.0/16"
+pub_cidr_blocks         = ["10.1.1.0/24", "10.1.2.0/24"]
+priv_cidr_blocks        = ["10.1.101.0/24", "10.1.102.0/24"]
+azs                     = ["us-east-1a", "us-east-1b"]
+cluster_name            = "eks-test-cluster"
+kubernetes_version      = "1.30"
+node_group_name         = "test-ng"
+node_instance_types     = ["t3.micro"]
+desired_size            = 2
+max_size                = 4
+min_size                = 1
+endpoint_public_access  = true
+endpoint_private_access = true
