@@ -12,3 +12,7 @@ max_size                = 4
 min_size                = 1
 endpoint_public_access  = true
 endpoint_private_access = true
+create_key_pair         = true
+key_name                = "test-key"
+public_key_path         = "~/.ssh/id_rsa.pub"
+ssh_private_key_path    = "~/.ssh/id_rsa"

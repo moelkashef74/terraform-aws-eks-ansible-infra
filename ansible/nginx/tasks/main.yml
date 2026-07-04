@@ -3,27 +3,51 @@
 - name: Update apt package cache
   apt:
     update_cache: yes
-- name: install nginx
+
+- name: install jenkins dependencies
   apt:
-    name: nginx
-    state: latest
-- name: start nginx
+    name:
+      - openjdk-21-jdk
+      - curl
+      - git
+    state: present 
+
+- name: create keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+
+- name: Download Jenkins GPG key
+  get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+    dest: /etc/apt/keyrings/jenkins-keyring.asc
+    mode: '0644'
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+
+- name: Update apt package cache
+  apt:
+    update_cache: yes
+
+- name: install jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Enable and start Jenkins
   service:
-    name: nginx
+    name: jenkins
     state: started
     enabled: yes
-- name: copy index.html
-  copy:
-    src: index.html
-    dest: /var/www/html/index.html
-- name: Create directory
-  file:
-    path: /var/www/html/ansible
-    state: directory
-    mode: '0755'
 
-- name: override index.html using echo
-  template:
-    src: index.html.j2
-    dest: /var/www/html/ansible/index.html
-  
+- name: Read Jenkins initial admin password
+  command: cat /var/lib/jenkins/secrets/initialAdminPassword
+  register: jenkins_password
+  changed_when: false
+
+- name: Show Jenkins initial password
+  debug:
+    msg: "Initial Jenkins password: {{ jenkins_password.stdout }}"

@@ -9,11 +9,12 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
-    from_port   = 80
-    to_port     = 80
+    from_port   = 8080
+    to_port     = 8080
     protocol    = "tcp"
-    security_groups = [aws_security_group.elb_sg.id]
+    cidr_blocks = ["0.0.0.0/0"]
   }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -22,11 +23,10 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-resource "aws_instance" "web" {
-  count         = 4
+resource "aws_instance" "ansible_ec2" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.micro"
-  subnet_id     = element(var.private_subnet_ids, count.index % length(var.private_subnet_ids))
+  subnet_id     = var.public_subnet_ids[1]
   key_name      = var.create_key_pair ? aws_key_pair.my_key[0].key_name : var.key_name
   vpc_security_group_ids = [
     aws_security_group.ec2_sg.id
@@ -34,18 +34,30 @@ resource "aws_instance" "web" {
 
 
   tags = {
-    Name = "web-${count.index + 1}"
-    Role = "web"
+    Name = "Ansible-EC2"
+    Role = "Ansible-Managed"
   }
 }
 resource "null_resource" "configure" {
 
   depends_on = [
-    aws_instance.web
+    aws_instance.ansible_ec2
   ]
 
   provisioner "local-exec" {
+  interpreter = ["/bin/bash", "-c"]
 
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${join(",", aws_instance.web[*].public_ip)},' --private-key=${pathexpand(var.ssh_private_key_path)} --user ubuntu ${path.root}/ansible/nginx-playbook.yaml"
-  }
+  command = <<-EOT
+    until nc -z ${aws_instance.ansible_ec2.public_ip} 22; do
+      echo "Waiting for SSH on ${aws_instance.ansible_ec2.public_ip}..."
+      sleep 10
+    done
+
+    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
+      -i '${aws_instance.ansible_ec2.public_ip},' \
+      --private-key='${pathexpand(var.ssh_private_key_path)}' \
+      --user ubuntu \
+      '${path.root}/ansible/nginx-playbook.yaml'
+  EOT
+}
 }
