@@ -48,16 +48,20 @@ resource "null_resource" "configure" {
   interpreter = ["/bin/bash", "-c"]
 
   command = <<-EOT
-    until nc -z ${aws_instance.ansible_ec2.public_ip} 22; do
-      echo "Waiting for SSH on ${aws_instance.ansible_ec2.public_ip}..."
-      sleep 10
-    done
+    until ssh -o StrictHostKeyChecking=no \
+          -o ConnectTimeout=5 \
+          -i ~/.ssh/id_rsa \
+          ubuntu@${aws_instance.ansible_ec2.public_ip} exit 2>/dev/null
+do
+  echo "Waiting for SSH..."
+  sleep 10
+done
 
     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
-      -i '${aws_instance.ansible_ec2.public_ip},' \
+      -i '${aws_instance.ansible_ec2.public_ip},'  \
       --private-key='${pathexpand(var.ssh_private_key_path)}' \
       --user ubuntu \
-      '${path.root}/ansible/nginx-playbook.yaml'
+      '${path.root}/ansible/site.yml'
   EOT
 }
 }

@@ -21,6 +21,7 @@ module "eks" {
   endpoint_public_access  = var.endpoint_public_access
   endpoint_private_access = var.endpoint_private_access
 }
+
 module "ec2" {
   source               = "./ec2"
   vpc_id               = module.network.vpc_id
@@ -31,6 +32,11 @@ module "ec2" {
   public_subnet_ids    = module.network.public_subnet_ids
   private_subnet_ids   = module.network.private_subnet_ids
 }
+
+output "ec2_public_ips" {
+  value = module.ec2.ec2_public_ips
+}
+
 output "eks_cluster_name" {
   value = module.eks.cluster_name
 }

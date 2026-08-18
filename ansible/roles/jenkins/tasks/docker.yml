@@ -1,0 +1,19 @@
+- name: Install Docker
+  ansible.builtin.apt:
+    name: docker.io
+    state: present
+  become: true
+
+- name: Enable Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+  become: true
+
+- name: Add Jenkins user to Docker group
+  ansible.builtin.user:
+    name: jenkins
+    groups: docker
+    append: true
+  become: true

@@ -1,0 +1,19 @@
+- name: Check Jenkins service status
+  ansible.builtin.systemd:
+    name: jenkins
+  register: jenkins_status
+  become: true
+
+- name: Display Jenkins status
+  ansible.builtin.debug:
+    var: jenkins_status.status.ActiveState
+
+- name: Verify Docker installation
+  ansible.builtin.command:
+    cmd: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Display Docker version
+  ansible.builtin.debug:
+    var: docker_version.stdout

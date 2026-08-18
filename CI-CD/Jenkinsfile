@@ -1,0 +1,108 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'mosayed711/nodejs-app'
+        IMAGE_TAG = "v2.${BUILD_NUMBER}"
+        CLUSTER_NAME = 'eks-test-cluster'
+        AWS_REGION = 'us-east-1'
+        APP_DEPLOYMENT = 'nodejs-app.yaml'
+        CLUSTER_ENDPOINT = 'https://78709925DDB4ABF9A5C4CA18988D4296.gr7.us-east-1.eks.amazonaws.com'
+    }
+
+    stages {
+
+        
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                echo "Building Docker image..."
+                docker build -t $IMAGE_NAME:$IMAGE_TAG .
+                '''
+            }
+        }
+
+        stage('Test Docker Image using trivy') {
+            steps {
+                sh 'echo "Testing Docker image using trivy..."'
+                sh """
+                trivy image \
+                --cache-dir /tmp/trivy-cache \
+                --timeout 10m \
+                --scanners vuln \
+                --severity HIGH,CRITICAL \
+                $IMAGE_NAME:$IMAGE_TAG
+                """
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                    echo $DOCKER_PASSWORD | docker login \
+                    -u $DOCKER_USERNAME \
+                    --password-stdin
+
+                    docker push $IMAGE_NAME:$IMAGE_TAG
+                    '''
+                }
+            }
+        }
+
+        stage('Delete Docker Image') {
+            steps {
+                sh 'echo "Deleting Docker image..."'
+                sh "docker rmi $IMAGE_NAME:$IMAGE_TAG"
+            }
+        }
+
+        stage('Editing Deployment YAML') {
+            steps {
+                sh 'echo "Editing deployment YAML file..."'
+                sh """
+                    sed -i "/mosayed711\\/nodejs-app/s|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|" ${APP_DEPLOYMENT}
+                """
+            }
+}
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'k8s-token', variable: 'K8S_TOKEN')
+                ]) {
+                    sh '''
+                    echo "Deploying to Kubernetes..."
+
+                    kubectl apply \
+                    -f ${APP_DEPLOYMENT} \
+                    --server=${CLUSTER_ENDPOINT} \
+                    --token=${K8S_TOKEN} \
+                    --insecure-skip-tls-verify=true
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'echo "pipeline completed."'
+        }
+
+        success {
+            sh 'echo "pipeline completed successfully."'
+        }
+
+        failure {
+            sh 'echo "pipeline failed."'
+        }
+    }
+}
