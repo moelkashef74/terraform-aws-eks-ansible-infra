@@ -88,6 +88,7 @@ resource "aws_eks_node_group" "this" {
   node_group_name = var.node_group_name
   node_role_arn   = aws_iam_role.eks_node_group.arn
   subnet_ids      = var.private_subnet_ids
+  ami_type        = "AL2023_x86_64_STANDARD"
 
   scaling_config {
     desired_size = var.desired_size
